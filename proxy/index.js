@@ -10,18 +10,43 @@ const { makeTronService } = require("./services/tronService");
 const { makeEthHandlers } = require("./handlers/ethHandlers");
 const { makeRpcRouter } = require("./handlers/rpcRouter");
 
-// Load ABI (optional)
-let deployAbi = [];
-if (config.FOUNDRY_ARTIFACT_PATH) {
+// ---- ABI loader with auto-reload ----
+let abiCache = [];
+let abiCachePath = null;
+let abiCacheMtimeMs = 0;
+
+function loadAbiFromArtifact() {
+  if (!config.FOUNDRY_ARTIFACT_PATH) return [];
+
   const p = path.resolve(config.FOUNDRY_ARTIFACT_PATH);
-  if (fs.existsSync(p)) {
-    const artifact = JSON.parse(fs.readFileSync(p, "utf8"));
-    deployAbi = artifact.abi || [];
-    console.log("Loaded ABI from:", p);
-  } else {
-    console.warn("FOUNDRY_ARTIFACT_PATH not found; ABI will be empty.");
+  abiCachePath = p;
+
+  if (!fs.existsSync(p)) {
+    // Don't spam logs; just return last cache (or empty)
+    return abiCache;
   }
+
+  const stat = fs.statSync(p);
+  if (stat.mtimeMs === abiCacheMtimeMs && abiCache.length) {
+    return abiCache; // unchanged
+  }
+
+  // changed or first load
+  const artifact = JSON.parse(fs.readFileSync(p, "utf8"));
+  abiCache = artifact.abi || [];
+  abiCacheMtimeMs = stat.mtimeMs;
+
+  console.log("Loaded ABI from:", p, `(mtime=${new Date(stat.mtimeMs).toISOString()})`);
+  return abiCache;
 }
+
+// Provide a getter so tronService can always use the latest ABI
+function getDeployAbi() {
+  return loadAbiFromArtifact();
+}
+
+// Load once at startup (optional)
+loadAbiFromArtifact();
 
 const upstreamService = makeUpstreamService({ upstreamJsonRpcUrl: config.UPSTREAM_JSONRPC });
 
@@ -32,7 +57,7 @@ const tronService = makeTronService({
   originEnergyLimit: config.ORIGIN_ENERGY_LIMIT,
   userFeePercentage: config.USER_FEE_PERCENTAGE,
   contractName: config.CONTRACT_NAME,
-  deployAbi,
+  getDeployAbi, // <-- NEW
 });
 
 console.log("Proxy signer (EVM 0x):", tronService.proxySignerEvm);
@@ -47,4 +72,7 @@ app.post("/", rpcRouter);
 app.listen(config.PORT, "127.0.0.1", () => {
   console.log(`tron-ethrpc-proxy listening on http://127.0.0.1:${config.PORT}`);
   console.log(`Forwarding reads to: ${config.UPSTREAM_JSONRPC}`);
+  if (config.FOUNDRY_ARTIFACT_PATH) {
+    console.log(`Watching ABI artifact path: ${path.resolve(config.FOUNDRY_ARTIFACT_PATH)}`);
+  }
 });

@@ -8,7 +8,7 @@ function makeTronService({
   originEnergyLimit,
   userFeePercentage,
   contractName,
-  deployAbi,
+  getDeployAbi, // <-- NEW (function)
 }) {
   const tronWeb = new TronWeb({
     fullHost: tronNodeBase,
@@ -19,10 +19,17 @@ function makeTronService({
   const proxySignerHex = tronWeb.defaultAddress.hex; // 41 + 20 bytes
   const proxySignerEvm = "0x" + proxySignerHex.slice(2);
 
+  function tronSuccess(info) {
+    const r = info?.receipt?.result;
+    return r === "SUCCESS" || r === "SUCESS";
+  }
+
   async function deployFromBytecode(bytecodeHexNo0x) {
+    const abi = typeof getDeployAbi === "function" ? getDeployAbi() : [];
+
     const unsigned = await tronWeb.transactionBuilder.createSmartContract(
       {
-        abi: deployAbi || [],
+        abi: abi || [],
         bytecode: bytecodeHexNo0x,
         feeLimit: feeLimitSun,
         callValue: 0,
@@ -35,6 +42,29 @@ function makeTronService({
 
     const signed = await tronWeb.trx.sign(unsigned);
     return tronWeb.trx.sendRawTransaction(signed);
+  }
+
+  async function getTransactionInfo(txid) {
+    return tronWeb.trx.getTransactionInfo(txid);
+  }
+
+  async function getContractBytecodeByHex41(tronContractHex41) {
+    try {
+      const base58 = tronWeb.address.fromHex(tronContractHex41);
+      const c = await tronWeb.trx.getContract(base58);
+
+      const bc =
+        c?.bytecode ||
+        c?.byteCode ||
+        c?.runtimeBytecode ||
+        c?.runtime_bytecode ||
+        null;
+
+      if (typeof bc === "string" && bc.length > 0) {
+        return bc.startsWith("0x") ? bc : "0x" + bc;
+      }
+    } catch {}
+    return "0x";
   }
 
   async function triggerSmartContract({ contractEvm0x, ownerEvm0x, dataHexNo0x, feeLimitSunOverride }) {
@@ -64,8 +94,11 @@ function makeTronService({
     proxySignerBase58,
     proxySignerHex,
     proxySignerEvm,
+    tronSuccess,
     deployFromBytecode,
     triggerSmartContract,
+    getTransactionInfo,
+    getContractBytecodeByHex41,
   };
 }
 
