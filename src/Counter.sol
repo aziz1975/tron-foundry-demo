@@ -12,7 +12,7 @@ contract Counter {
         number += 1;
     }
 
-// new function to decrement the counter
+    // new function to decrement the counter
     function decrement() external {
         require(number > 0, "Counter: number cannot be negative");
         number -= 1;
