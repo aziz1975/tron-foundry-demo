@@ -57,7 +57,7 @@ const tronService = makeTronService({
   originEnergyLimit: config.ORIGIN_ENERGY_LIMIT,
   userFeePercentage: config.USER_FEE_PERCENTAGE,
   contractName: config.CONTRACT_NAME,
-  getDeployAbi, // <-- NEW
+  getDeployAbi,
 });
 
 console.log("Proxy signer (EVM 0x):", tronService.proxySignerEvm);

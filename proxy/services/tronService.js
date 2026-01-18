@@ -8,7 +8,7 @@ function makeTronService({
   originEnergyLimit,
   userFeePercentage,
   contractName,
-  getDeployAbi, // <-- NEW (function)
+  getDeployAbi, 
 }) {
   const tronWeb = new TronWeb({
     fullHost: tronNodeBase,
