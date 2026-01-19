@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
+import "./MathLib.sol";
 
 contract Counter {
     uint256 public number;
@@ -9,7 +10,7 @@ contract Counter {
     }
 
     function increment() external {
-        number += 1;
+        number = MathLib.add(number, 1);
     }
 
     // new function to decrement the counter
