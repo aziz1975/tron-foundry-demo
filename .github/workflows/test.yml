@@ -21,14 +21,22 @@ jobs:
         with:
           version: stable
 
-      - name: Show Foundry version
+      - name: Install dependencies (OpenZeppelin)
         run: |
-          forge --version
-          cast --version
+          # Install OpenZeppelin into lib/ so imports like
+          # "openzeppelin-contracts/contracts/access/Ownable.sol" work.
+          forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.5.0
 
-      - name: Run tests (CI profile)
+          # Useful debug output
+          ls -la lib || true
+          ls -la lib/openzeppelin-contracts/contracts/access/Ownable.sol
+
+      - name: Build (CI profile)
         env:
           FOUNDRY_PROFILE: ci
-        run: |
-          forge config
-          forge test -vvv
+        run: forge build -vvv
+
+      - name: Test (CI profile)
+        env:
+          FOUNDRY_PROFILE: ci
+        run: forge test -vvv
