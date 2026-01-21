@@ -33,8 +33,6 @@ function loadArtifact() {
   const contractName = path.basename(p, ".json");
   const abi = artifact.abi || [];
 
-  // Foundry artifacts usually keep creation bytecode here:
-  // artifact.bytecode.object (string) OR artifact.bytecode (string)
   const bytecodeObj =
     (artifact.bytecode && artifact.bytecode.object) ||
     artifact.bytecode ||
@@ -71,11 +69,15 @@ function getCreationBytecodeNo0x() {
 
 loadArtifact();
 
-const upstreamService = makeUpstreamService({ upstreamJsonRpcUrl: config.UPSTREAM_JSONRPC });
+const upstreamService = makeUpstreamService({
+  upstreamJsonRpcUrl: config.UPSTREAM_JSONRPC,
+  tronProApiKey: config.TRON_PRO_API_KEY,
+});
 
 const tronService = makeTronService({
   tronNodeBase: config.TRON_NODE_BASE,
   tronPrivateKey: config.TRON_PRIVATE_KEY,
+  tronProApiKey: config.TRON_PRO_API_KEY,
   feeLimitSun: config.FEE_LIMIT_SUN,
   originEnergyLimit: config.ORIGIN_ENERGY_LIMIT,
   userFeePercentage: config.USER_FEE_PERCENTAGE,

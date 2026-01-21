@@ -4,6 +4,7 @@ const TronWeb = TronWebPkg.TronWeb || TronWebPkg.default || TronWebPkg;
 function makeTronService({
   tronNodeBase,
   tronPrivateKey,
+  tronProApiKey,
   feeLimitSun,
   originEnergyLimit,
   userFeePercentage,
@@ -14,6 +15,7 @@ function makeTronService({
   const tronWeb = new TronWeb({
     fullHost: tronNodeBase,
     privateKey: tronPrivateKey,
+    headers: tronProApiKey ? { "TRON-PRO-API-KEY": tronProApiKey } : undefined,
   });
 
   const proxySignerBase58 = tronWeb.defaultAddress.base58;
@@ -41,7 +43,9 @@ function makeTronService({
     const abi = getAbi();
     const name = getName();
 
-    const hasTuple = Array.isArray(constructorAbi?.inputs) && constructorAbi.inputs.some((i) => String(i.type).includes("tuple"));
+    const hasTuple =
+      Array.isArray(constructorAbi?.inputs) &&
+      constructorAbi.inputs.some((i) => String(i.type).includes("tuple"));
 
     const options = {
       abi,

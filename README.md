@@ -6,7 +6,7 @@ The key idea is:
 
 - Foundry expects Ethereum-style RPC methods like `eth_sendRawTransaction` and `eth_getTransactionCount`.
 - Several TRON JSON-RPC endpoints do not support those write methods directly.
-- This proxy accepts Foundry’s `eth_sendRawTransaction` requests, converts them into **TRON-native deploy/broadcast** calls using **TronWeb**, and forwards read-only RPC calls to a **Chainstack TRON `/jsonrpc`** endpoint.
+- This proxy accepts Foundry’s `eth_sendRawTransaction` requests, converts them into **TRON-native deploy/broadcast** calls using **TronWeb**, and forwards read-only RPC calls to a **trongrid `/jsonrpc`** endpoint.
 
 ---
 
@@ -54,7 +54,7 @@ The key idea is:
 
 - Node.js (Node 20+)
 - Foundry (forge/cast)
-- A Chainstack TRON Nile endpoint (base endpoint and `/jsonrpc`)
+- A trongrid Nile endpoint (base endpoint and `/jsonrpc`)
 - TRX on Nile for the deployer address
 - `tools/tron-solc/solc-tron-0.8.23` (TRON Solidity compiler)
 
@@ -88,17 +88,11 @@ npm install
 
 ---
 
-## Configure Chainstack
+## Configure trongrid
 
-In Chainstack, create a TRON Nile node and copy:
+In trongrid, create an API key for mainnet only.
 
-- **Base endpoint** (no postfix):  
-  `https://tron-nile.core.chainstack.com/<YOUR_TOKEN>`
-
-- JSON-RPC endpoint (read-only forward target):  
-  `https://tron-nile.core.chainstack.com/<YOUR_TOKEN>/jsonrpc`
-
-The proxy uses the base endpoint for TRON-native `/wallet/*` calls through TronWeb, and forwards many `eth_*` reads to `/jsonrpc`.
+The proxy uses the base endpoint for TRON-native `/wallet/*` calls through TronWeb, and forwards several `eth_*` reads to `/jsonrpc`.
 
 ---
 
@@ -112,7 +106,7 @@ cp .env.sample .env
 
 Edit `.env`:
 
-- `CHAINSTACK_BASE_ENDPOINT` (base endpoint, no `/jsonrpc`)
+- `TRON_BASE_ENDPOINT` (base endpoint, no `/jsonrpc`)
 - `TRON_PRIVATE_KEY`
 - `DEPLOYER_ADDRESS`
 - `FOUNDRY_ARTIFACT_PATH` (see section below)
@@ -262,15 +256,17 @@ forge create src/OZCounter.sol:OZCounter   --rpc-url http://127.0.0.1:8545   --p
 TRON’s compiler produces bytecode that the local EVM test runner may not execute.
 So tests must use standard Solidity compilation.
 
-Use the `test` profile:
+Use the `test` profile and make sure to run `forge clean` first:
 
 ```bash
+forge clean
 FOUNDRY_PROFILE="test" forge test
 ```
 
 More verbose:
 
 ```bash
+forge clean
 FOUNDRY_PROFILE="test" forge test -vvv
 ```
 

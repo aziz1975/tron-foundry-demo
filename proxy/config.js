@@ -19,7 +19,6 @@ function loadEnv() {
       return;
     }
   }
-
   dotenv.config();
 }
 
@@ -28,7 +27,7 @@ loadEnv();
 const PORT = Number(process.env.PORT || 8545);
 
 function deriveBaseEndpoint() {
-  let base = (process.env.CHAINSTACK_BASE_ENDPOINT || process.env.TRON_NODE_BASE || "").trim();
+  let base = (process.env.TRON_BASE_ENDPOINT || process.env.TRON_NODE_BASE || "").trim();
 
   if (!base) {
     const rpc = (process.env.TRON_RPC_URL || "").trim();
@@ -37,30 +36,29 @@ function deriveBaseEndpoint() {
     }
   }
 
-  base = stripTrailingSlash(base);
-  return base;
+  return stripTrailingSlash(base);
 }
 
-const CHAINSTACK_BASE_ENDPOINT = deriveBaseEndpoint();
+const TRON_BASE_ENDPOINT = deriveBaseEndpoint();
 
-if (!CHAINSTACK_BASE_ENDPOINT.startsWith("http")) {
+if (!TRON_BASE_ENDPOINT.startsWith("http")) {
   throw new Error(
-    "Missing/invalid CHAINSTACK_BASE_ENDPOINT. Add one of these to your .env:\n" +
-      '  CHAINSTACK_BASE_ENDPOINT="https://tron-nile.core.chainstack.com/<token>"\n' +
-      "or\n" +
-      '  TRON_RPC_URL="https://tron-nile.core.chainstack.com/<token>/jsonrpc"'
+    "Missing/invalid base endpoint. Set TRON_BASE_ENDPOINT to TronGrid, e.g.\n" +
+      '  TRON_BASE_ENDPOINT="https://nile.trongrid.io"\n' +
+      '  TRON_BASE_ENDPOINT="https://api.trongrid.io"'
   );
 }
 
-const UPSTREAM_JSONRPC = `${CHAINSTACK_BASE_ENDPOINT}/jsonrpc`;
-const TRON_NODE_BASE = CHAINSTACK_BASE_ENDPOINT;
+const UPSTREAM_JSONRPC = `${TRON_BASE_ENDPOINT}/jsonrpc`;
+const TRON_NODE_BASE = TRON_BASE_ENDPOINT;
 
 const TRON_PRIVATE_KEY = (process.env.TRON_PRIVATE_KEY || process.env.PRIVATE_KEY || "").trim();
 if (!TRON_PRIVATE_KEY) {
-  throw new Error(
-    'Missing TRON_PRIVATE_KEY (or PRIVATE_KEY). Add to your .env:\n  TRON_PRIVATE_KEY="0x..."'
-  );
+  throw new Error('Missing TRON_PRIVATE_KEY (or PRIVATE_KEY).');
 }
+
+// TronGrid API key (optional for Nile/Shasta; often needed for mainnet)
+const TRON_PRO_API_KEY = (process.env.TRON_PRO_API_KEY || "").trim();
 
 const FEE_LIMIT_SUN = Number(process.env.FEE_LIMIT_SUN || 150000000);
 const ORIGIN_ENERGY_LIMIT = Number(process.env.ORIGIN_ENERGY_LIMIT || 10000000);
@@ -70,10 +68,11 @@ const FOUNDRY_ARTIFACT_PATH = process.env.FOUNDRY_ARTIFACT_PATH || "";
 
 module.exports = {
   PORT,
-  CHAINSTACK_BASE_ENDPOINT,
+  TRON_BASE_ENDPOINT,
   UPSTREAM_JSONRPC,
   TRON_NODE_BASE,
   TRON_PRIVATE_KEY,
+  TRON_PRO_API_KEY,
   FEE_LIMIT_SUN,
   ORIGIN_ENERGY_LIMIT,
   USER_FEE_PERCENTAGE,
