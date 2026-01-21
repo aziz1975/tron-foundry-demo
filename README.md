@@ -5,8 +5,8 @@ This repo demonstrates how to use **Foundry (forge/cast)** to **compile and depl
 The key idea is:
 
 - Foundry expects Ethereum-style RPC methods like `eth_sendRawTransaction` and `eth_getTransactionCount`.
-- Several TRON JSON-RPC endpoints do not support those write methods directly.
-- This proxy accepts Foundry’s `eth_sendRawTransaction` requests, converts them into **TRON-native deploy/broadcast** calls using **TronWeb**, and forwards read-only RPC calls to a **trongrid `/jsonrpc`** endpoint.
+- Many TRON JSON-RPC endpoints do not support those write methods directly.
+- This proxy accepts Foundry’s `eth_sendRawTransaction` requests, converts them into **TRON-native deploy/broadcast** calls using **TronWeb**, and forwards read-only RPC calls to a **TRON JSON-RPC `/jsonrpc`** endpoint (e.g., TronGrid).
 
 ---
 
@@ -32,7 +32,6 @@ The key idea is:
 │  ├─ config.js
 │  ├─ index.js
 │  └─ store.js
-├─ script/
 ├─ src/
 │  ├─ Counter.sol
 │  ├─ Greeter.sol
@@ -50,19 +49,28 @@ The key idea is:
 
 ---
 
+## Useful links
+
+- Repo: https://github.com/aziz1975/tron-foundry-demo
+- Foundry: https://getfoundry.sh/
+- `forge create` reference: https://getfoundry.sh/forge/reference/create/
+- Foundry CI guide: https://getfoundry.sh/config/continuous-integration/
+- TronGrid docs: https://www.trongrid.io/documents
+- OpenZeppelin Contracts: https://github.com/OpenZeppelin/openzeppelin-contracts
+
+---
+
 ## Requirements
 
 - Node.js (Node 20+)
 - Foundry (forge/cast)
-- A trongrid Nile endpoint (base endpoint and `/jsonrpc`)
+- TRON endpoint (TronGrid): base endpoint + `/jsonrpc`
 - TRX on Nile for the deployer address
-- `tools/tron-solc/solc-tron-0.8.23` (TRON Solidity compiler)
+- TRON Solidity compiler binary: `tools/tron-solc/solc-tron-0.8.23` (for deployment builds)
 
 ---
 
 ## Install Foundry (forge/cast)
-
-On Linux:
 
 ```bash
 curl -L https://foundry.paradigm.xyz | bash
@@ -78,9 +86,7 @@ cast --version
 
 ---
 
-## Install Node Dependencies (Proxy)
-
-From repo root:
+## Install Node dependencies (proxy)
 
 ```bash
 npm install
@@ -88,11 +94,15 @@ npm install
 
 ---
 
-## Configure trongrid
+## Configure TRON endpoint (TronGrid example)
 
-In trongrid, create an API key for mainnet only.
+Use the **base endpoint** (no postfix):
 
-The proxy uses the base endpoint for TRON-native `/wallet/*` calls through TronWeb, and forwards several `eth_*` reads to `/jsonrpc`.
+- Nile: `https://nile.trongrid.io`
+- Shasta: `https://api.shasta.trongrid.io`
+- Mainnet: `https://api.trongrid.io`
+
+Your proxy will forward reads to: `<BASE>/jsonrpc`.
 
 ---
 
@@ -104,144 +114,80 @@ Copy sample:
 cp .env.sample .env
 ```
 
-Edit `.env`:
-
-- `TRON_BASE_ENDPOINT` (base endpoint, no `/jsonrpc`)
-- `TRON_PRIVATE_KEY`
-- `DEPLOYER_ADDRESS`
-- `FOUNDRY_ARTIFACT_PATH` (see section below)
-
-### IMPORTANT: Always load `.env` into your shell
-
-Every time you change `.env`, run:
+Every time you change `.env`, reload it in your terminal **and restart the proxy**:
 
 ```bash
 set -a; source .env; set +a
-```
-
-This ensures variables are exported for your current terminal session.
-
----
-
-## Start/Restart the Proxy
-
-The proxy reads config from `.env`. If you change **any proxy code** or `.env`, restart the server.
-
-```bash
 node proxy/index.js
 ```
 
-The proxy listens on:
+### Important: choose the correct artifact per deployment
 
-- `http://127.0.0.1:${PORT}` (default `8545`)
+The proxy uses `FOUNDRY_ARTIFACT_PATH` to attach ABI and to decode constructor arguments.
 
----
+Set it to match the contract you are deploying:
 
-## Install OpenZeppelin (Optional, for OZCounter)
+- Counter: `out/Counter.sol/Counter.json`
+- Greeter: `out/Greeter.sol/Greeter.json`
+- OZCounter: `out/OZCounter.sol/OZCounter.json`
 
-Install locally:
+After changing it:
 
 ```bash
-forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.5.0
+set -a; source .env; set +a
+node proxy/index.js
 ```
-
-This creates `lib/openzeppelin-contracts/` so imports like:
-
-```solidity
-import "openzeppelin-contracts/contracts/access/Ownable.sol";
-```
-
-resolve correctly.
 
 ---
 
-## Build Artifacts (Out Folder)
-
-Always compile before deployment (especially after contract changes):
+## Build artifacts before deploying
 
 ```bash
 forge clean
 forge build
 ```
 
-Artifacts are generated under `out/<File>.sol/<Contract>.json`.
-
 ---
 
-## Selecting the Correct Artifact (Important)
+## Deploy contracts via Foundry (through the proxy)
 
-This repo’s proxy supports constructor decoding by using the **artifact ABI + creation bytecode**.
-
-That means: **based on which contract you deploy, you must update `FOUNDRY_ARTIFACT_PATH` in `.env`.**
-
-Examples:
-
-- Counter:
-
-  ```bash
-  FOUNDRY_ARTIFACT_PATH="out/Counter.sol/Counter.json"
-  ```
-
-- Greeter:
-
-  ```bash
-  FOUNDRY_ARTIFACT_PATH="out/Greeter.sol/Greeter.json"
-  ```
-
-- OZCounter:
-  ```bash
-  FOUNDRY_ARTIFACT_PATH="out/OZCounter.sol/OZCounter.json"
-  ```
-
-After changing `FOUNDRY_ARTIFACT_PATH`, always:
-
-1. reload `.env`
-2. restart proxy
+### Counter (no constructor args)
 
 ```bash
-set -a; source .env; set +a
-node proxy/index.js
+forge create src/Counter.sol:Counter --rpc-url http://127.0.0.1:8545 --private-key "$TRON_PRIVATE_KEY" --legacy --broadcast -vvvv
 ```
 
----
+After deployment, Forge prints output similar to this:
 
-## Generate `DEPLOYER_ADDRESS`
-
-`OZCounter` needs an EVM-style `0x...` address for `initialOwner`.
-
-Generate and save into `.env`:
-
-```bash
-echo "DEPLOYER_ADDRESS=$(cast wallet address --private-key "$TRON_PRIVATE_KEY")" >> .env
+```text
+Deployer: 0xE57Ea93173DeA454EfF302E48E58DbA4F942dDBb
+Deployed to: 0xb73d26849904b82435b64eE5F44A132873e6A4ad
+Transaction hash: 0x2fab7cc68e1e5c9983508a58810dc6ea3e18f861834ad98402ea4ea6cd920f4a
 ```
 
-Then reload `.env`:
+To check the transaction on Tronscan, copy the **Transaction hash**, remove the `0x` prefix, and search the remaining value (the txid) on Tronscan.
 
-```bash
-set -a; source .env; set +a
-```
-
----
-
-## Deploy Contracts via Foundry (through the Proxy)
-
-### 1) Counter (no constructor args)
-
-```bash
-forge create src/Counter.sol:Counter   --rpc-url http://127.0.0.1:8545   --private-key "$TRON_PRIVATE_KEY"   --legacy   --broadcast   -vvvv
-```
-
-### 2) Greeter (constructor: `string initialGreeting`)
-
-Make sure `FOUNDRY_ARTIFACT_PATH` points to Greeter, then:
+### Greeter (constructor string)
 
 ```bash
 forge create src/Greeter.sol:Greeter   --rpc-url http://127.0.0.1:8545   --private-key "$TRON_PRIVATE_KEY"   --legacy   --broadcast   --constructor-args "Hello World"   -vvvv
 ```
 
-### 3) OZCounter (constructor: `address initialOwner`)
+### OZCounter (imports OpenZeppelin, constructor address)
 
-Make sure `FOUNDRY_ARTIFACT_PATH` points to OZCounter, then:
+Install OpenZeppelin:
+
+```bash
+forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.5.0
+```
+
+Generate `DEPLOYER_ADDRESS` (owner) in .env file:
+
+```bash
+echo "DEPLOYER_ADDRESS=$(cast wallet address --private-key "$TRON_PRIVATE_KEY")" >> .env
+```
+
+Deploy:
 
 ```bash
 forge create src/OZCounter.sol:OZCounter   --rpc-url http://127.0.0.1:8545   --private-key "$TRON_PRIVATE_KEY"   --legacy   --broadcast   --constructor-args "$DEPLOYER_ADDRESS"   -vvvv
@@ -249,46 +195,50 @@ forge create src/OZCounter.sol:OZCounter   --rpc-url http://127.0.0.1:8545   --p
 
 ---
 
-## Tests (EVM Only)
+## Tests (EVM only)
 
 ### Why a special profile?
 
 TRON’s compiler produces bytecode that the local EVM test runner may not execute.
 So tests must use standard Solidity compilation.
-
-Use the `test` profile and make sure to run `forge clean` first:
+Use the `test` profile (standard solc). **Run `forge clean` before `forge test`**.
 
 ```bash
 forge clean
 FOUNDRY_PROFILE="test" forge test
 ```
 
-More verbose:
+Interactive debug:
 
 ```bash
 forge clean
-FOUNDRY_PROFILE="test" forge test -vvv
-```
-
-### Debug tests (interactive)
-
-Foundry version doesn’t support `forge debug` as a separate subcommand. Use `--debug` on `forge test`:
-
-```bash
 FOUNDRY_PROFILE="test" forge test --debug   --match-contract "CounterTest"   --match-test "test_increment_usesLibrary"   -vvvv
 ```
 
 ---
 
-## GitHub Actions (CI)
+## Limitations and next improvements
 
-This repo uses a GitHub Actions workflow that:
+### Feature support matrix
 
-- installs Foundry
-- installs OpenZeppelin
-- builds and tests under the `ci` profile (standard solc)
+| Feature / Command                                         | Supported by this proxy | Notes / Workaround                                                                                                   |
+| --------------------------------------------------------- | ----------------------: | -------------------------------------------------------------------------------------------------------------------- |
+| `forge create` (deploy)                                   |                  ✅ Yes | Works via `eth_sendRawTransaction` translation to TRON-native deploy/broadcast.                                      |
+| `forge create` + constructor args                         |                  ✅ Yes | Works.                                                                                                               |
+| Imports (local `import "./MathLib.sol"`), Imports (OpenZeppelin)                  |                  ✅ Yes | Works.                                                                                                               |
+| forge debug                                    |                  ⚠️ Partial | Works with standard Solidity compiler. Using the command `forge test --debug ...`                                                         |
+| `forge test` using **TRON solc**                          |                   ❌ No | TRON compiler output is not compatible with Foundry’s local EVM runner.                                              |
+| `forge test` using standard solc (`FOUNDRY_PROFILE=test`) |                  ✅ Yes | Recommended workflow for unit tests. Run `forge clean` first.                                                        |
+| `forge coverage`                                |              ✅ Yes | Works |
+| `forge fmt`                               |              ✅ Yes | Works         |
+| Forking / `anvil --fork-url ...`                          |                   ❌ No | Requires much broader RPC parity than this proxy provides.                                                           |
+| `forge verify-contract`                                   |                   ❌ No | Use Tronscan verification flow instead.                                                                              |
 
-File: `.github/workflows/test.yml`
+---
+
+## CI (GitHub Actions)
+
+The workflow installs OpenZeppelin and runs build/test using profile `ci` (standard solc). See `.github/workflows/test.yml`.
 
 ---
 
