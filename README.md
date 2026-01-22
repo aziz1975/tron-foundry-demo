@@ -51,7 +51,7 @@ The key idea is:
 
 ## Useful links
 
-- Repo: https://github.com/aziz1975/tron-foundry-demo
+- Repo: https://github.com/aziz1975/tron-foundry-proxy
 - Foundry: https://getfoundry.sh/
 - `forge create` reference: https://getfoundry.sh/forge/reference/create/
 - Foundry CI guide: https://getfoundry.sh/config/continuous-integration/
