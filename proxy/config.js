@@ -44,8 +44,8 @@ const TRON_BASE_ENDPOINT = deriveBaseEndpoint();
 if (!TRON_BASE_ENDPOINT.startsWith("http")) {
   throw new Error(
     "Missing/invalid base endpoint. Set TRON_BASE_ENDPOINT to TronGrid, e.g.\n" +
-      '  TRON_BASE_ENDPOINT="https://nile.trongrid.io"\n' +
-      '  TRON_BASE_ENDPOINT="https://api.trongrid.io"'
+    '  TRON_BASE_ENDPOINT="https://nile.trongrid.io"\n' +
+    '  TRON_BASE_ENDPOINT="https://api.trongrid.io"'
   );
 }
 
@@ -64,8 +64,6 @@ const FEE_LIMIT_SUN = Number(process.env.FEE_LIMIT_SUN || 150000000);
 const ORIGIN_ENERGY_LIMIT = Number(process.env.ORIGIN_ENERGY_LIMIT || 10000000);
 const USER_FEE_PERCENTAGE = Number(process.env.USER_FEE_PERCENTAGE || 100);
 
-const FOUNDRY_ARTIFACT_PATH = process.env.FOUNDRY_ARTIFACT_PATH || "";
-
 module.exports = {
   PORT,
   TRON_BASE_ENDPOINT,
@@ -76,5 +74,4 @@ module.exports = {
   FEE_LIMIT_SUN,
   ORIGIN_ENERGY_LIMIT,
   USER_FEE_PERCENTAGE,
-  FOUNDRY_ARTIFACT_PATH,
 };

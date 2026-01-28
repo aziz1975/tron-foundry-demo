@@ -49,8 +49,8 @@ function loadArtifact() {
     mtimeMs: stat.mtimeMs,
   };
 
-  console.log("Loaded artifact:", p);
-  console.log("Contract name:", artifactCache.contractName);
+  //console.log("Artifact loaded from filesystem");
+  //console.log("Contract Name:", artifactCache.contractName);
 
   return artifactCache;
 }
@@ -67,7 +67,7 @@ function getCreationBytecodeNo0x() {
   return loadArtifact().creationBytecodeNo0x;
 }
 
-loadArtifact();
+//loadArtifact(); // initial load, removed to allow dynamic loading later
 
 const upstreamService = makeUpstreamService({
   upstreamJsonRpcUrl: config.UPSTREAM_JSONRPC,
@@ -88,7 +88,19 @@ const tronService = makeTronService({
 
 console.log("Proxy signer (EVM 0x):", tronService.proxySignerEvm);
 
-const ethHandlers = makeEthHandlers({ store, tronService, upstreamService });
+function setFoundryArtifactPath(p) {
+  // allow runtime override of the artifact path and reload artifact cache
+  try {
+    config.FOUNDRY_ARTIFACT_PATH = p || "";
+    // reset cache so next loadArtifact() will read the new file
+    artifactCache.mtimeMs = 0;
+    loadArtifact();
+  } catch (e) {
+    console.error("Failed to set FOUNDRY_ARTIFACT_PATH:", e.message || e);
+  }
+}
+
+const ethHandlers = makeEthHandlers({ store, tronService, upstreamService, setFoundryArtifactPath });
 const rpcRouter = makeRpcRouter({ ethHandlers, upstreamService });
 
 const app = express();
@@ -96,6 +108,6 @@ app.use(express.json({ limit: "4mb" }));
 app.post("/", rpcRouter);
 
 app.listen(config.PORT, "127.0.0.1", () => {
-  console.log(`tron-ethrpc-proxy listening on http://127.0.0.1:${config.PORT}`);
+  console.log(`ethrpc-tron-proxy listening on http://127.0.0.1:${config.PORT}`);
   console.log(`Forwarding reads to: ${config.UPSTREAM_JSONRPC}`);
 });

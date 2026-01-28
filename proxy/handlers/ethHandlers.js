@@ -1,11 +1,11 @@
-const ethersPkg = require("ethers");
-const ethers = ethersPkg.ethers ?? ethersPkg;
+import { ethers } from "ethers";
+import { findArtifacts } from "../utils/artifactPath.js"
+import { toQuantityHex } from "../utils/hex.js";
+import 'dotenv/config'
 
-const { toQuantityHex } = require("../utils/hex");
 
-function makeEthHandlers({ store, tronService, upstreamService }) {
+export function makeEthHandlers({ store, tronService, upstreamService, setFoundryArtifactPath }) {
   const { proxySignerEvm, tronWeb } = tronService;
-
   async function eth_getTransactionCount(params) {
     const addr = (params?.[0] || "").toLowerCase();
     return toQuantityHex(store.getNextNonce(addr));
@@ -62,6 +62,33 @@ function makeEthHandlers({ store, tronService, upstreamService }) {
   }
 
   async function eth_sendRawTransaction(params) {
+    // console.log("RLP Encoded txn:");
+    // console.log(params);
+    //***Foundry workflow to automatically look for artifact, we might need to make this optional for future general use cases ***
+    const FOUNDRY_WORKFLOW = true;  // Eventually we can get this from an envVar
+    if (FOUNDRY_WORKFLOW == true) {
+      const artifactsFolder = process.env.FOUNDRY_ARTIFACT_PATH;
+      // Decode RLP 
+      const decodedRLP = ethers.decodeRlp(params[0]);
+      // Get bytecode from RLP arrray
+      const byteCodeToMatch = decodedRLP[5];
+      console.log("Looking for an artifact match... ");
+      // Search artifacts matching our decoded bytecode to get the artifact path
+      const matches = await findArtifacts(artifactsFolder, byteCodeToMatch);
+      if (matches.length === 0) {
+        console.log(`No artifacts found containing "${byteCodeToMatch}"`);
+      } else {
+        console.log(`Found in!`);
+      }
+      //Get the first match only (theoretically should be only one)
+      const foundry_artifact = matches[0];
+      console.log(foundry_artifact);
+      if (typeof setFoundryArtifactPath === "function") {
+        setFoundryArtifactPath(foundry_artifact);
+      }
+
+    }
+
     const rawTxHex = params?.[0];
     if (typeof rawTxHex !== "string" || !rawTxHex.startsWith("0x")) {
       throw new Error("eth_sendRawTransaction expects a 0x... hex string");
@@ -99,7 +126,7 @@ function makeEthHandlers({ store, tronService, upstreamService }) {
       if (!creationNo0x || !fullNo0x.startsWith(creationNo0x)) {
         throw new Error(
           "Cannot split constructor args from tx.data. " +
-            "Make sure FOUNDRY_ARTIFACT_PATH points to the correct contract artifact and that the contract was recompiled."
+          "Make sure FOUNDRY_ARTIFACT_PATH points to the correct contract artifact and that the contract was recompiled."
         );
       }
 
@@ -163,4 +190,3 @@ function makeEthHandlers({ store, tronService, upstreamService }) {
   };
 }
 
-module.exports = { makeEthHandlers };
