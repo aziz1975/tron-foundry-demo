@@ -1,5 +1,5 @@
 [profile.default]
-solc = "tools/tron-solc/solc-macos-0.8.25"
+solc = "tools/tron-solc/YOUR_TRON_SOLC_COMPILER" #Path to your compiler
 evm_version = "cancun"
 optimizer = true
 optimizer_runs = 200

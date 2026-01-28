@@ -49,8 +49,8 @@ function loadArtifact() {
     mtimeMs: stat.mtimeMs,
   };
 
-  console.log("Loaded artifact:", p);
-  console.log("Contract name:", artifactCache.contractName);
+  //console.log("Artifact loaded from filesystem");
+  //console.log("Contract Name:", artifactCache.contractName);
 
   return artifactCache;
 }

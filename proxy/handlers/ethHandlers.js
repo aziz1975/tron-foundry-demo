@@ -1,10 +1,11 @@
 import { ethers } from "ethers";
 import { findArtifacts } from "../utils/artifactPath.js"
 import { toQuantityHex } from "../utils/hex.js";
+import 'dotenv/config'
+
 
 export function makeEthHandlers({ store, tronService, upstreamService, setFoundryArtifactPath }) {
   const { proxySignerEvm, tronWeb } = tronService;
-
   async function eth_getTransactionCount(params) {
     const addr = (params?.[0] || "").toLowerCase();
     return toQuantityHex(store.getNextNonce(addr));
@@ -66,21 +67,20 @@ export function makeEthHandlers({ store, tronService, upstreamService, setFoundr
     //***Foundry workflow to automatically look for artifact, we might need to make this optional for future general use cases ***
     const FOUNDRY_WORKFLOW = true;  // Eventually we can get this from an envVar
     if (FOUNDRY_WORKFLOW == true) {
-      const artifactsFolder = "./out/"; // Change to your artifacts folder, TODO: to be imported from envvar eventually
-
+      const artifactsFolder = process.env.FOUNDRY_ARTIFACT_PATH;
+      // Decode RLP 
       const decodedRLP = ethers.decodeRlp(params[0]);
-      //console.log("Contract Bytecode:");
+      // Get bytecode from RLP arrray
       const byteCodeToMatch = decodedRLP[5];
-      //console.log(byteCodeToMatch)
       console.log("Looking for an artifact match... ");
-
+      // Search artifacts matching our decoded bytecode to get the artifact path
       const matches = await findArtifacts(artifactsFolder, byteCodeToMatch);
       if (matches.length === 0) {
         console.log(`No artifacts found containing "${byteCodeToMatch}"`);
       } else {
-        console.log(`Found in:`);
-        //matches.forEach((file) => console.log(file));
+        console.log(`Found in!`);
       }
+      //Get the first match only (theoretically should be only one)
       const foundry_artifact = matches[0];
       console.log(foundry_artifact);
       if (typeof setFoundryArtifactPath === "function") {
