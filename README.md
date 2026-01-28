@@ -14,37 +14,40 @@ The key idea is:
 
 ```
 .
-├─ .github/workflows/test.yml
-├─ lib/
-│  ├─ forge-std/
-│  └─ openzeppelin-contracts/
-├─ proxy/
-│  ├─ handlers/
-│  │  ├─ ethHandlers.js
-│  │  └─ rpcRouter.js
-│  ├─ services/
-│  │  ├─ tronService.js
-│  │  └─ upstreamService.js
-│  ├─ utils/
-│  │  ├─ address.js
-│  │  ├─ hex.js
-│  │  └─ jsonrpc.js
-│  ├─ config.js
-│  ├─ index.js
-│  └─ store.js
-├─ src/
-│  ├─ Counter.sol
-│  ├─ Greeter.sol
-│  ├─ MathLib.sol
-│  └─ OZCounter.sol
-├─ test/
-│  └─ Counter.t.sol
-├─ tools/tron-solc/
-│  └─ solc-tron-0.8.23
-├─ .env
-├─ .env.sample
-├─ foundry.toml
-└─ package.json
+├── .env
+├── .env.sample
+├── .github
+│   └── workflows
+├── .gitignore
+├── .gitmodules
+├── .husky
+│   ├── _
+│   └── pre-commit
+├── README.md
+├── foundry.lock
+├── foundry.toml
+├── lib
+│   ├── forge-std
+│   └── openzeppelin-contracts
+├── package-lock.json
+├── package.json
+├── proxy
+│   ├── config.js
+│   ├── handlers
+│   ├── index.js
+│   ├── services
+│   ├── store.js
+│   └── utils
+├── script
+│   └── Counter.s.sol
+├── src
+│   ├── Counter.sol
+│   ├── Greeter.sol
+│   └── OZCounter.sol
+├── test
+│   └── Counter.t.sol
+└── tools
+    └── tron-solc
 ```
 
 ---
@@ -86,17 +89,23 @@ cast --version
 
 ---
 
-## Install Node dependencies (proxy)
+## Clone Repository
 
 ```bash
-npm install
+git clone [https://github.com/aziz1975/tron-foundry-proxy](https://github.com/aziz1975/tron-foundry-proxy)
+cd tron-foundry-proxy
+```
+
+## Install dependencies
+
+```bash
+npm install #Proxy dependencies
+forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.5.0 #Contracts dependencies
 ```
 
 ---
 
 ## Configure TRON endpoint (TronGrid example)
-
-Use the **base endpoint** (no postfix):
 
 - Nile: `https://nile.trongrid.io`
 - Shasta: `https://api.shasta.trongrid.io`
@@ -114,6 +123,11 @@ Copy sample:
 cp .env.sample .env
 ```
 
+Adjust EnvVars if needed e.g:
+
+* `TRON_BASE_ENDPOINT`
+* `FOUNDRY_ARTIFACT_PATH`
+
 Every time you change `.env`, reload it in your terminal **and restart the proxy**:
 
 ```bash
@@ -121,24 +135,17 @@ set -a; source .env; set +a
 node proxy/index.js
 ```
 
-### Important: choose the correct artifact per deployment
+## Run the proxy
 
-The proxy uses `FOUNDRY_ARTIFACT_PATH` to attach ABI and to decode constructor arguments.
+Open a separate terminal window and keep the ethjsonrpc-tron proxy running:
 
-Set it to match the contract you are deploying:
+`node proxy/index.js`
 
-- Counter: `out/Counter.sol/Counter.json`
-- Greeter: `out/Greeter.sol/Greeter.json`
-- OZCounter: `out/OZCounter.sol/OZCounter.json`
+## Create a Keystore
 
-After changing it:
+We’ll use a keystore encrypted with a password for enhanced security.
 
-```bash
-set -a; source .env; set +a
-node proxy/index.js
-```
-
----
+`cast wallet import yourKeyName --private-key 0xYOUR_PRIVATE_KEY`
 
 ## Build artifacts before deploying
 
@@ -147,14 +154,12 @@ forge clean
 forge build
 ```
 
----
-
 ## Deploy contracts via Foundry (through the proxy)
 
 ### Counter (no constructor args)
 
 ```bash
-forge create src/Counter.sol:Counter --rpc-url http://127.0.0.1:8545 --private-key "$TRON_PRIVATE_KEY" --legacy --broadcast -vvvv
+forge create src/Counter.sol:Counter --keystore ~/.foundry/keystores/YOUR-KEYSTORE --legacy --broadcast -vvvv
 ```
 
 After deployment, Forge prints output similar to this:
@@ -170,27 +175,21 @@ To check the transaction on Tronscan, copy the **Transaction hash**, remove the 
 ### Greeter (constructor string)
 
 ```bash
-forge create src/Greeter.sol:Greeter   --rpc-url http://127.0.0.1:8545   --private-key "$TRON_PRIVATE_KEY"   --legacy   --broadcast   --constructor-args "Hello World"   -vvvv
+forge create src/Greeter.sol:Greeter --keystore ~/.foundry/keystores/YOUR-KEYSTORE --legacy --broadcast --constructor-args "Hello World" -vvvv
 ```
 
 ### OZCounter (imports OpenZeppelin, constructor address)
 
-Install OpenZeppelin:
+Optional: Generate `DEPLOYER_ADDRESS` (owner) in .env file:
 
 ```bash
-forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.5.0
-```
-
-Generate `DEPLOYER_ADDRESS` (owner) in .env file:
-
-```bash
-echo "DEPLOYER_ADDRESS=$(cast wallet address --private-key "$TRON_PRIVATE_KEY")" >> .env
+echo "DEPLOYER_ADDRESS=$(cast wallet address --keystore ~/.foundry/keystores/YOUR-KEYSTORE)" >> .env
 ```
 
 Deploy:
 
 ```bash
-forge create src/OZCounter.sol:OZCounter   --rpc-url http://127.0.0.1:8545   --private-key "$TRON_PRIVATE_KEY"   --legacy   --broadcast   --constructor-args "$DEPLOYER_ADDRESS"   -vvvv
+forge create src/OZCounter.sol:OZCounter --keystore ~/.foundry/keystores/YOUR-KEYSTORE --legacy --broadcast --constructor-args "$DEPLOYER_ADDRESS_IN_HEX" -vvvv
 ```
 
 ---
@@ -221,18 +220,19 @@ FOUNDRY_PROFILE="test" forge test --debug   --match-contract "CounterTest"   --m
 
 ### Feature support matrix
 
-| Feature / Command                                         | Supported by this proxy | Notes / Workaround                                                                                                   |
-| --------------------------------------------------------- | ----------------------: | -------------------------------------------------------------------------------------------------------------------- |
-| `forge create` (deploy)                                   |                  ✅ Yes | Works via `eth_sendRawTransaction` translation to TRON-native deploy/broadcast.                                      |
-| `forge create` + constructor args                         |                  ✅ Yes | Works.                                                                                                               |
-| Imports (local `import "./MathLib.sol"`), Imports (OpenZeppelin)                  |                  ✅ Yes | Works.                                                                                                               |
-| forge debug                                    |                  ⚠️ Partial | Works with standard Solidity compiler. Using the command `forge test --debug ...`                                                         |
-| `forge test` using **TRON solc**                          |                   ❌ No | TRON compiler output is not compatible with Foundry’s local EVM runner.                                              |
-| `forge test` using standard solc (`FOUNDRY_PROFILE=test`) |                  ✅ Yes | Recommended workflow for unit tests. Run `forge clean` first.                                                        |
-| `forge coverage`                                |              ✅ Yes | Works |
-| `forge fmt`                               |              ✅ Yes | Works         |
-| Forking / `anvil --fork-url ...`                          |                   ❌ No | Requires much broader RPC parity than this proxy provides.                                                           |
-| `forge verify-contract`                                   |                   ❌ No | Use Tronscan verification flow instead.                                                                              |
+
+| Feature / Command                                               | Supported by this proxy | Notes / Workaround                                                               |
+| --------------------------------------------------------------- | ----------------------: | -------------------------------------------------------------------------------- |
+| `forge create` (deploy)                                         |                  ✅ Yes | Works via`eth_sendRawTransaction` translation to TRON-native deploy/broadcast.   |
+| `forge create` + constructor args                               |                  ✅ Yes | Works.                                                                           |
+| Imports (local`import "./MathLib.sol"`), Imports (OpenZeppelin) |                  ✅ Yes | Works.                                                                           |
+| forge debug                                                     |            ⚠️ Partial | Works with standard Solidity compiler. Using the command`forge test --debug ...` |
+| `forge test` using **TRON solc**                                |                   ❌ No | TRON compiler output is not compatible with Foundry’s local EVM runner.         |
+| `forge test` using standard solc (`FOUNDRY_PROFILE=test`)       |                  ✅ Yes | Recommended workflow for unit tests. Run`forge clean` first.                     |
+| `forge coverage`                                                |                  ✅ Yes | Works                                                                            |
+| `forge fmt`                                                     |                  ✅ Yes | Works                                                                            |
+| Forking /`anvil --fork-url ...`                                 |                   ❌ No | Requires much broader RPC parity than this proxy provides.                       |
+| `forge verify-contract`                                         |                   ❌ No | Use Tronscan verification flow instead.                                          |
 
 ---
 
@@ -266,19 +266,22 @@ forge build
 ### Deploy Counter
 
 ```bash
-forge create src/Counter.sol:Counter --rpc-url http://127.0.0.1:8545 --private-key "$TRON_PRIVATE_KEY" --legacy --broadcast -vvvv
+forge create src/Counter.sol:Counter --keystore ~/.foundry/keystores/YOUR-KEYSTORE --legacy --broadcast -vvvv
+
 ```
 
 ### Deploy Greeter with constructor args
 
 ```bash
-forge create src/Greeter.sol:Greeter --rpc-url http://127.0.0.1:8545 --private-key "$TRON_PRIVATE_KEY" --legacy --broadcast --constructor-args "Hello World" -vvvv
+forge create src/Greeter.sol:Greeter --keystore ~/.foundry/keystores/YOUR-KEYSTORE --legacy --broadcast --constructor-args "Hello World" -vvvv
+
 ```
 
 ### Deploy OZCounter with constructor args
 
 ```bash
-forge create src/OZCounter.sol:OZCounter --rpc-url http://127.0.0.1:8545 --private-key "$TRON_PRIVATE_KEY" --legacy --broadcast --constructor-args "$DEPLOYER_ADDRESS" -vvvv
+forge create src/OZCounter.sol:OZCounter --keystore ~/.foundry/keystores/YOUR-KEYSTORE --legacy --broadcast --constructor-args "$DEPLOYER_ADDRESS_IN_HEX" -vvvv
+
 ```
 
 ### Install OpenZeppelin
@@ -290,7 +293,7 @@ forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.5.0
 ### Generate deployer address for OZCounter
 
 ```bash
-echo "DEPLOYER_ADDRESS=$(cast wallet address --private-key "$TRON_PRIVATE_KEY")" >> .env
+echo "DEPLOYER_ADDRESS=$(cast wallet address --keystore ~/.foundry/keystores/YOUR-KEYSTORE)" >> .env
 ```
 
 ### Run tests with standard solc
@@ -325,17 +328,12 @@ forge fmt
 
 This usually means:
 
-- you are deploying contract A, but `FOUNDRY_ARTIFACT_PATH` points to contract B, or
-- you changed `.env` but didn’t reload it, or
-- you didn’t recompile (`forge build`) after contract changes.
+- The automated artifacted finder in the proxy had a problem to locate your contract json artifact.
 
 Fix:
 
-1. set correct `FOUNDRY_ARTIFACT_PATH`
-2. run `set -a; source .env; set +a`
-3. restart proxy (`node proxy/index.js`)
-4. `forge clean && forge build`
-5. deploy again
+1. Make sure you compiled contracts properly
+2. Limitation on how the artifact finder script works, debug on wether your bytecode contains a "000000000" string, constructor strip function in artifactPath.js might have encounter an exception there.
 
 ### 2) Tronscan “No Data” (no Read/Write UI)
 
